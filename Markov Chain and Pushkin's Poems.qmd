@@ -1,0 +1,121 @@
+---
+title: "Markov Chain and Onegin (Pushkin)"
+author: "Vivian Yang"
+date: 2025/11/14
+format: 
+  html:
+    code-fold: false
+    mathjax: default
+  pdf:
+    default
+editor: visual
+toc: true
+number-sections: true
+knitr:
+  opts_chunk: 
+    echo: true
+    warning: false
+    message: false
+    fig.align: "center"
+    cache: false
+    comment: "#>" 
+    R.options:
+      knitr.graphics.auto_pdf: true
+keep-md: true
+---
+
+# Introduction
+
+The widely used statistical time-series equation Markov Chain, which was introduced by Andrey A. Markov in 1906.
+I would like to represent the Markov Chain by invovling its history.
+
+# Markov Chain with Pushkin's Poems in R
+
+First, load the required packages.
+
+```{r}
+#| label: poemdata
+#| include: true
+library(tidyverse)
+library(tinytable)
+setwd("C:/Users/vivia/Documents")
+text_raw <- readLines("./Pushkin poems.txt", encoding = "UTF-8")
+text_raw <- readLines("./Pushkin poems.txt", encoding = "UTF-8")
+text <- paste(text_raw, collapse = " ")
+```
+
+Because the raw data includes titles, punctuation marks, spaces, etc., which I don't need. Thus, I pre-process the raw data into the processed data by making them all in lower case, extracting unwanted lines, removing the punctuation marks, blank spaces, and blank lines.
+
+```{r}
+text_processed <- tolower(text_raw) #changing into lower case
+text_processed <- gsub("[^a-z]", "", iconv(text, from="UTF-8", to="ASCII//TRANSLIT")) #withdraw everything which is not the alphabet
+letters_vec <- strsplit(text_processed, "")[[1]] #divide the strings into 'alphabet vectors'
+```
+Note that the length of the vectors are identical to what Markov used before.
+
+Then, I define what "vows" are. 
+Attention, beacause I use the English ver. of the poetry, I define the vows of English.
+After establishing the concept of vows, I then define the categorizing vectors, separating the letter vectors into V (vows) and C (consonants).
+```{r}
+vowels <- c("a", "e", "i", "o", "u") 
+type_vec <- ifelse(letters_vec %in% vowels, "V", "C")
+```
+
+Now We check the result of categorization:
+
+```{r}
+table(letters_vec[!letters_vec %in% c("a","e","i","o","u")][1:100])
+
+```
+
+
+# Introducing the Markov Chain
+
+
+\begin{aligned}
+&\text{Discrete Markov Chain}\\
+
+&\text{Pr}(X_{n+1} = x \,|\,X_1 = x_1, X_2 = x_2, X_3 = x_3, \dots,X_n = x_n)
+=\text{Pr}(X_{n+1} = x \,|\,X_n = x_n)\\
+
+\text{if} \; &\textbf{Pr}(X_1 = x_1, X_2 = x_2, X_3 = x_3, \dots,X_n = x_n)>0\,\text{(well-defined conditional probability)}
+\end{aligned}
+
+
+
+```{r}
+states <- c("V", "C")
+transition_counts <- matrix(0, nrow = 2, ncol = 2,
+                            dimnames = list(states, states))
+
+for (i in 1:(length(type_vec) - 1)) {
+  from <- type_vec[i]
+  to   <- type_vec[i + 1]
+  transition_counts[from, to] <- transition_counts[from, to] + 1
+}
+
+transition_counts
+```
+
+```{r}
+transition_matrix <- transition_counts / rowSums(transition_counts)
+transition_matrix
+```
+
+```{r}
+eig <- eigen(t(transition_matrix))
+stationary <- eig$vectors[,1] / sum(eig$vectors[,1])
+stationary
+```
+
+```{r}
+set.seed(123)
+sim <- character(100)
+sim[1] <- sample(states, 1)   
+
+for (i in 2:100) {
+  from <- sim[i-1]
+  sim[i] <- sample(states, 1, prob = transition_matrix[from, ])
+}
+
+```
